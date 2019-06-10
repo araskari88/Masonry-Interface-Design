@@ -49,7 +49,7 @@ completeFileLocation2 = ""
 
 
 def CONVtriOPSfunc():
-    global element, node, wall, floor, polygon, material, analysis
+    global element, node, wall, floor, polygon, material, analysis, restraint, fixconstraint, w2wconstraint, f2wconstraint
     startTime = time.time()
     Tremuri_Input_func.completeFileLocation1 = completeFileLocation2
     Tremuri_Input_func.TRIfunc()
@@ -615,7 +615,9 @@ def CONVtriOPSfunc():
     material.to_excel(writer, sheet_name='material')
     analysis.to_excel(writer, sheet_name='analysis')
 
+    restraint = impRestraint.copy(deep=True)
+
     writer.save()
     print("Convert Tremuri to OpenSees completed in --- %s seconds ---" % (time.time() - startTime))
 
-    return element, node, wall, floor, polygon, material, analysis
+    return element, node, wall, floor, polygon, material, analysis, restraint, fixconstraint, w2wconstraint, f2wconstraint

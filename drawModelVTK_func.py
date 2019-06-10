@@ -1,5 +1,6 @@
 import convertTremuriToOpensees_func
 import numpy as np
+import pandas as pd
 import time
 import vtk
 
@@ -22,7 +23,6 @@ class arrowMaker(vtk.vtkActor):
         math = vtk.vtkMath()
         math.Subtract(endPoint, startPoint, normalizedX)
         length = math.Norm(normalizedX)
-        print(length)
         math.Normalize(normalizedX)
 
         # The Z axis is an arbitrary vector cross X
@@ -197,7 +197,8 @@ completeFileLocation3 = ""
 
 
 def drMoVTKFunc():
-    global impElement, impNode, impWall, impFloor, impPolygon, impMaterial, impAnalysis, renderer, maxX, maxY
+    global impElement, impNode, impWall, impFloor, impPolygon, impMaterial, impAnalysis, impRestraint, impFixConstraint\
+        , impW2wConstraint, impF2wConstraint, renderer, maxX, minX, maxY, minY, maxZ, minZ, storeElementPatch, restraintActors
     startTime = time.time()
     convertTremuriToOpensees_func.completeFileLocation2 = completeFileLocation3
     convertTremuriToOpensees_func.CONVtriOPSfunc()
@@ -227,14 +228,48 @@ def drMoVTKFunc():
     impFloor = convertTremuriToOpensees_func.floor.copy(deep=True)
     impPolygon = convertTremuriToOpensees_func.polygon.copy(deep=True)
     impAnalysis = convertTremuriToOpensees_func.analysis.copy(deep=True)
+    impRestraint = convertTremuriToOpensees_func.restraint.copy(deep=True)
+    impFixConstraint = convertTremuriToOpensees_func.fixconstraint.copy(deep=True)
+    impW2wConstraint = convertTremuriToOpensees_func.w2wconstraint.copy(deep=True)
+    impF2wConstraint = convertTremuriToOpensees_func.f2wconstraint.copy(deep=True)
+
+    tmp_storeElementPatch = pd.DataFrame(columns=['Object No.', 'Bounds1', 'Bounds2', 'Bounds1-WireFrame',
+                                                  'Bounds2-WireFrame', 'Object Type', 'Element Type', 'Node Type',
+                                                  'Actor1', 'Actor2', 'Actor1-WireFrame', 'Actor2-WireFrame',
+                                                  'Actor1-WireFrame-Wire', 'Actor2-WireFrame-Wire', 'Actor1-WireFrame-Node'], index=['0'])
+    empty_tmp_storeElementPatch = pd.DataFrame(columns=['Object No.', 'Bounds1', 'Bounds2', 'Bounds1-WireFrame',
+                                                        'Bounds2-WireFrame', 'Object Type', 'Element Type', 'Node Type',
+                                                        'Actor1', 'Actor2', 'Actor1-WireFrame', 'Actor2-WireFrame',
+                                                        'Actor1-WireFrame-Wire', 'Actor2-WireFrame-Wire', 'Actor1-WireFrame-Node'], index=['0'])
+    tmp_storeElementPatch_list = []
+
+    tmp_restraintActors = pd.DataFrame(columns=['Node', 'Fx', 'Fy', 'Fz', 'Rx', 'Ry', 'Actor1', 'Actor2'])
+    empty_tmp_restraintActors = pd.DataFrame(columns=['Node', 'Fx', 'Fy', 'Fz', 'Rx', 'Ry', 'Actor1', 'Actor2'])
+    tmp_restraintActors_list = []
 
     maxX = -1 * np.inf
+    minX = np.inf
     maxY = -1 * np.inf
+    minY = np.inf
+    maxZ = -1 * np.inf
+    minZ = np.inf
     totalElements = impElement['type'].count()
     floorToPlot = 0
+
+    # Create the widget
+    balloonRep = vtk.vtkBalloonRepresentation()
+    balloonRep.SetBalloonLayoutToImageRight()
+
+    balloonWidget = vtk.vtkBalloonWidget()
+    balloonWidget.SetInteractor(renderWindowInteractor)
+    balloonWidget.SetRepresentation(balloonRep)
+
     for item in np.arange(totalElements):
         if impElement['type'].iloc[item] == "FloorShell":
             if len(impElement['nodeVec'].iloc[item]) == 4:
+                tmp_storeElementPatch.at['0', 'Object No.'] = impElement.index[item]
+                tmp_storeElementPatch.at['0', 'Object Type'] = "Element"
+                tmp_storeElementPatch.at['0', 'Element Type'] = "FloorShell"
                 floorToPlot = floorToPlot + 1
                 xx = [
                     impNode.at[impElement['nodeVec'].iloc[item][0], 'x'],
@@ -251,13 +286,21 @@ def drMoVTKFunc():
                     impNode.at[impElement['nodeVec'].iloc[item][1], 'z'],
                     impNode.at[impElement['nodeVec'].iloc[item][2], 'z'],
                     impNode.at[impElement['nodeVec'].iloc[item][3], 'z']]
+                tmp_storeElementPatch.at['0', 'Bounds1'] = [np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy),
+                                                            np.amin(zz), np.amax(zz)]
+                tmp_storeElementPatch.at['0', 'Bounds1-WireFrame'] = [np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy),
+                                                            np.amin(zz), np.amax(zz)]
                 points = vtk.vtkPoints()
                 points.InsertNextPoint(xx[0], yy[0], zz[0])
                 points.InsertNextPoint(xx[1], yy[1], zz[1])
                 points.InsertNextPoint(xx[2], yy[2], zz[2])
                 points.InsertNextPoint(xx[3], yy[3], zz[3])
                 maxX = max(maxX, max(xx))
+                minX = min(minX, min(xx))
                 maxY = max(maxY, max(yy))
+                minY = min(minY, min(yy))
+                maxZ = max(maxZ, max(zz))
+                minZ = min(minZ, min(zz))
 
                 # Create the polygon
                 polygon = vtk.vtkPolygon()
@@ -285,6 +328,40 @@ def drMoVTKFunc():
                 actor.GetProperty().SetColor(colors.GetColor3d("Green"))
                 actor.GetProperty().SetOpacity(0.6)
                 renderer.AddActor(actor)
+                tmp_storeElementPatch.at['0', 'Actor1'] = actor
+                tmp_storeElementPatch.at['0', 'Actor1-WireFrame'] = actor
+                baloonText = "Floor " + str(impElement.index[item])
+                balloonWidget.AddBalloon(actor, baloonText)
+
+                points = vtk.vtkPoints()
+                points.SetNumberOfPoints(4)
+                points.SetPoint(0, xx[0], yy[0], zz[0])
+                points.SetPoint(1, xx[1], yy[1], zz[1])
+                points.SetPoint(2, xx[2], yy[2], zz[2])
+                points.SetPoint(3, xx[3], yy[3], zz[3])
+
+                polyLine = vtk.vtkCellArray()
+                polyLine.InsertNextCell(5)
+                polyLine.InsertCellPoint(0)
+                polyLine.InsertCellPoint(1)
+                polyLine.InsertCellPoint(2)
+                polyLine.InsertCellPoint(3)
+                polyLine.InsertCellPoint(0)
+
+                # Create a PolyData
+                polyLinePolyData = vtk.vtkPolyData()
+                polyLinePolyData.SetPoints(points)
+                polyLinePolyData.SetLines(polyLine)
+                # Create a mapper and actor
+                mapper = vtk.vtkPolyDataMapper()
+                mapper.SetInputData(polyLinePolyData)
+                mapper.Update()
+                actor = vtk.vtkActor()
+                actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(colors.GetColor3d("Green"))
+                actor.GetProperty().SetLineWidth(5)
+                renderer.AddActor(actor)
+                tmp_storeElementPatch.at['0', 'Actor1-WireFrame-Wire'] = actor
 
                 center = [np.mean(xx), np.mean(yy), np.mean(zz)]
                 baseLength = impElement['b'].iloc[item]
@@ -312,8 +389,9 @@ def drMoVTKFunc():
                     yDir4.append(yy)
                     zDir4.append(zz)
 
+                tmp_storeElementPatch_list.append(tmp_storeElementPatch.values.tolist()[0])
 
-
+    tmp_storeElementPatch = empty_tmp_storeElementPatch.copy(deep=True)
     xDir4 = np.array(xDir4).transpose()
     yDir4 = np.array(yDir4).transpose()
     zDir4 = np.array(zDir4).transpose()
@@ -321,11 +399,27 @@ def drMoVTKFunc():
     totalNodes = impNode['x'].count()
     nodeToPlot = 0
     wallPatch = 0
+    nodeLocationList = []
     for item in np.arange(totalNodes):
+        # Add little sphere as nodes representation in wireframe view
+        source = vtk.vtkSphereSource()
+        source.SetCenter(impNode['x'].iat[item], impNode['y'].iat[item], impNode['z'].iat[item])
+        source.SetRadius(0.05)
+        if [impNode['x'].iat[item], impNode['y'].iat[item], impNode['z'].iat[item]] not in nodeLocationList:
+            nodeLocationList.append([impNode['x'].iat[item], impNode['y'].iat[item], impNode['z'].iat[item]])
+            # mapper
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputConnection(source.GetOutputPort())
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetColor(colors.GetColor3d('Black'))
+            renderer.AddActor(actor)
+            tmp_storeElementPatch.at['0', 'Actor1-WireFrame-Node'] = actor
+
         nodeToPlot = nodeToPlot + 1
-        tmpX_vec = impNode['x'].iloc[item]
-        tmpY_vec = impNode['y'].iloc[item]
-        tmpZ_vec = impNode['z'].iloc[item]
+        tmpX_vec = impNode['x'].iat[item]
+        tmpY_vec = impNode['y'].iat[item]
+        tmpZ_vec = impNode['z'].iat[item]
         if nodeToPlot == 1:
             X_vec = [tmpX_vec]
             Y_vec = [tmpY_vec]
@@ -335,8 +429,9 @@ def drMoVTKFunc():
             Y_vec.append(tmpY_vec)
             Z_vec.append(tmpZ_vec)
         if impNode.index[item] in impPolygon.index:
-            sub_polygon = impPolygon.groupby(impPolygon.index).get_group(
-                impNode.index[item])
+            tmp_storeElementPatch.at['0', 'Object No.'] = impNode.index[item]
+            tmp_storeElementPatch.at['0', 'Object Type'] = "Node"
+            sub_polygon = impPolygon.groupby(impPolygon.index).get_group(impNode.index[item])
             test = impNode.index[item]
             sub_count = sub_polygon['xDim'].count()
             for sub_item in np.arange(sub_count):
@@ -354,6 +449,11 @@ def drMoVTKFunc():
                 t = sub_polygon['t'].iloc[sub_item]
                 wallPatch = wallPatch + 1
                 [xx, yy, zz] = addWallToPatch(nodeI, nodeJ, v_or, L, t, [[0], [0], [0]], [[0], [0], [0]], 'wireframe')
+                [xxWF, yyWF, zzWF] = addWallToPatch(nodeI, nodeJ, v_or, L, 0, [[0], [0], [0]], [[0], [0], [0]], 'wireframe')
+                tmp_storeElementPatch.at['0', 'Bounds1'] = [np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy),
+                                                            np.amin(zz), np.amax(zz)]
+                tmp_storeElementPatch.at['0', 'Bounds1-WireFrame'] = [np.amin(xxWF), np.amax(xxWF), np.amin(yyWF), np.amax(yyWF),
+                                                            np.amin(zzWF), np.amax(zzWF)]
                 points = vtk.vtkPoints()
                 points.InsertNextPoint(xx[0][0], yy[0][0], zz[0][0])
                 points.InsertNextPoint(xx[1][0], yy[1][0], zz[1][0])
@@ -374,7 +474,115 @@ def drMoVTKFunc():
                 actor.GetProperty().SetColor(colors.GetColor3d('Silver'))
                 renderer.AddActor(actor)
                 maxX = max(maxX, max(map(max, xx)))
+                minX = min(minX, min(map(min, xx)))
                 maxY = max(maxY, max(map(max, yy)))
+                minY = min(minY, min(map(min, yy)))
+                maxZ = max(maxZ, max(map(max, zz)))
+                minZ = min(minZ, min(map(min, zz)))
+
+                tmp_storeElementPatch.at['0', 'Actor1'] = actor
+                # And now we render all the piers as wireframes and store their actor names
+                tmp_pickedPoints = []
+                for checkItemRow in np.arange(4):
+                    for checkItemCol in np.arange(2):
+                        addStat = True
+                        for currentItem in np.arange(len(tmp_pickedPoints)):
+                            if tmp_pickedPoints[currentItem] == [xxWF[checkItemRow][checkItemCol],
+                                                                 yyWF[checkItemRow][checkItemCol],
+                                                                 zzWF[checkItemRow][checkItemCol]]:
+                                addStat = False
+                                continue
+                        if addStat:
+                            tmp_pickedPoints.append(
+                                [xxWF[checkItemRow][checkItemCol], yyWF[checkItemRow][checkItemCol],
+                                 zzWF[checkItemRow][checkItemCol]])
+                pickedPoints = [tmp_pickedPoints[2], tmp_pickedPoints[0], tmp_pickedPoints[1], tmp_pickedPoints[3]]
+
+                points = vtk.vtkPoints()
+                points.InsertNextPoint(pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                points.InsertNextPoint(pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                points.InsertNextPoint(pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                points.InsertNextPoint(pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                # Create the polygon
+                polygon = vtk.vtkPolygon()
+                polygon.GetPointIds().SetNumberOfIds(4)  # make a quad
+                polygon.GetPointIds().SetId(0, 0)
+                polygon.GetPointIds().SetId(1, 1)
+                polygon.GetPointIds().SetId(2, 2)
+                polygon.GetPointIds().SetId(3, 3)
+
+                # Add the polygon to a list of polygons
+                polygons = vtk.vtkCellArray()
+                polygons.InsertNextCell(polygon)
+
+                # Create a PolyData
+                polygonPolyData = vtk.vtkPolyData()
+                polygonPolyData.SetPoints(points)
+                polygonPolyData.SetPolys(polygons)
+
+                # Create a mapper and actor
+                mapper = vtk.vtkPolyDataMapper()
+                mapper.SetInputData(polygonPolyData)
+
+                actor = vtk.vtkActor()
+                actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(colors.GetColor3d("Silver"))
+                renderer.AddActor(actor)
+                tmp_storeElementPatch.at['0', 'Actor1-WireFrame'] = actor
+
+                points = vtk.vtkPoints()
+                points.SetNumberOfPoints(4)
+                points.SetPoint(0, pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                points.SetPoint(1, pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                points.SetPoint(2, pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                points.SetPoint(3, pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                polyLine = vtk.vtkCellArray()
+                polyLine.InsertNextCell(5)
+                polyLine.InsertCellPoint(0)
+                polyLine.InsertCellPoint(1)
+                polyLine.InsertCellPoint(2)
+                polyLine.InsertCellPoint(3)
+                polyLine.InsertCellPoint(0)
+
+                # Create a PolyData
+                polyLinePolyData = vtk.vtkPolyData()
+                polyLinePolyData.SetPoints(points)
+                polyLinePolyData.SetLines(polyLine)
+                # Create a mapper and actor
+                mapper = vtk.vtkPolyDataMapper()
+                mapper.SetInputData(polyLinePolyData)
+                mapper.Update()
+                actor = vtk.vtkActor()
+                actor.SetMapper(mapper)
+                actor.GetProperty().SetColor(colors.GetColor3d("Silver"))
+                actor.GetProperty().SetLineWidth(5)
+                renderer.AddActor(actor)
+                tmp_storeElementPatch.at['0', 'Actor1-WireFrame-Wire'] = actor
+
+                tmp_storeElementPatch_list.append(tmp_storeElementPatch.values.tolist()[0])
+        else:
+            tmp_storeElementPatch.at['0', 'Object No.'] = impNode.index[item]
+            tmp_storeElementPatch.at['0', 'Object Type'] = "Node"
+            tmp_storeElementPatch_list.append(tmp_storeElementPatch.values.tolist()[0])
+
+    tmp_storeElementPatch = empty_tmp_storeElementPatch.copy(deep=True)
+
+    # Draw the node restraints
+    totalRestraints = impRestraint['x'].count()
+    for restraintItem in np.arange(totalRestraints):
+        nodeItem = impRestraint.index[restraintItem]
+        tmp_restraintActors.at['0', 'Node'] = nodeItem
+        tmp_restraintActors.at['0', 'Fx'] = impRestraint['x'].iat[restraintItem]
+        tmp_restraintActors.at['0', 'Fy'] = impRestraint['y'].iat[restraintItem]
+        tmp_restraintActors.at['0', 'Fz'] = impRestraint['z'].iat[restraintItem]
+        tmp_restraintActors.at['0', 'Rx'] = impRestraint['rx'].iat[restraintItem]
+        tmp_restraintActors.at['0', 'Ry'] = impRestraint['ry'].iat[restraintItem]
+
+        tmp_restraintActors_list.append(tmp_restraintActors.values.tolist()[0])
+        tmp_restraintActors = empty_tmp_restraintActors.copy(deep=True)
+
 
     # Draw the elements
     elementWallNo = 0
@@ -386,6 +594,8 @@ def drMoVTKFunc():
     for item in np.arange(totalElements):
         if impElement['type'].iloc[item] == "Macroelement3d":
             if elementWallNo != 0:
+                tmp_storeElementPatch.at['0', 'Object No.'] = impElement.index[item]
+                tmp_storeElementPatch.at['0', 'Object Type'] = "Element"
                 nWall = impElement['wall'].iloc[item]
                 v_or = impWall.at[int(nWall), 'zAxis']
                 v_or = np.array([v_or]).transpose()  # transpose to convert the variable to a column vector
@@ -406,9 +616,21 @@ def drMoVTKFunc():
                 t = impElement['t'].iloc[item]
                 [xx1, yy1, zz1] = addWallToPatch(nodeI, nodeE1, zAxisRotI, impElement['b'].iloc[item],
                                                  t, [[0], [0], [0]], [[0], [0.5 * shift], [0]], "wireframe")
+                [xx1WF, yy1WF, zz1WF] = addWallToPatch(nodeI, nodeE1, zAxisRotI, impElement['b'].iloc[item] * 0.01,
+                                                 0, [[0], [0], [0]], [[0], [0.5 * shift], [0]], "wireframe")
+                tmp_storeElementPatch.at['0', 'Bounds1'] = [np.amin(xx1), np.amax(xx1), np.amin(yy1), np.amax(yy1), np.amin(zz1), np.amax(zz1)]
+                tmp_storeElementPatch.at['0', 'Bounds1-WireFrame'] = [np.amin(xx1WF), np.amax(xx1WF), np.amin(yy1WF), np.amax(yy1WF),
+                                                            np.amin(zz1WF), np.amax(zz1WF)]
                 [xx2, yy2, zz2] = addWallToPatch(nodeE2, nodeJ, zAxisRotJ, impElement['b'].iloc[item],
                                                  t, [[0], [0.5 * shift], [0]], [[0], [0], [0]], "wireframe")
+                [xx2WF, yy2WF, zz2WF] = addWallToPatch(nodeE2, nodeJ, zAxisRotJ, impElement['b'].iloc[item] * 0.01,
+                                                 0, [[0], [0.5 * shift], [0]], [[0], [0], [0]], "wireframe")
+                tmp_storeElementPatch.at['0', 'Bounds2'] = [np.amin(xx2), np.amax(xx2), np.amin(yy2), np.amax(yy2), np.amin(zz2), np.amax(zz2)]
+                tmp_storeElementPatch.at['0', 'Bounds2-WireFrame'] = [np.amin(xx2WF), np.amax(xx2WF), np.amin(yy2WF), np.amax(yy2WF),
+                                                            np.amin(zz2WF), np.amax(zz2WF)]
+
                 if abs(np.dot([[0, 0, 1]], impElement['xAxis'].iloc[item]) > 0.9):
+                    tmp_storeElementPatch.at['0', 'Element Type'] = "Wall - Pier"
                     pier = pier + 1
                     if pier == 1:
                         cPiers = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
@@ -434,7 +656,87 @@ def drMoVTKFunc():
                     actor.GetProperty().SetColor(colors.GetColor3d('Red'))
                     renderer.AddActor(actor)
                     maxX = max(maxX, max(map(max, xx1)))
+                    minX = min(minX, min(map(min, xx1)))
                     maxY = max(maxY, max(map(max, yy1)))
+                    minY = min(minY, min(map(min, yy1)))
+                    maxZ = max(maxZ, max(map(max, zz1)))
+                    minZ = min(minZ, min(map(min, zz1)))
+                    tmp_storeElementPatch.at['0', 'Actor1'] = actor
+                    # And now we render all the piers as wireframes and store their actor names
+                    tmp_pickedPoints = []
+                    for checkItemRow in np.arange(4):
+                        for checkItemCol in np.arange(2):
+                            addStat = True
+                            for currentItem in np.arange(len(tmp_pickedPoints)):
+                                if tmp_pickedPoints[currentItem] == [xx1WF[checkItemRow][checkItemCol], yy1WF[checkItemRow][checkItemCol], zz1WF[checkItemRow][checkItemCol]]:
+                                    addStat = False
+                                    continue
+                            if addStat:
+                                tmp_pickedPoints.append([xx1WF[checkItemRow][checkItemCol], yy1WF[checkItemRow][checkItemCol], zz1WF[checkItemRow][checkItemCol]])
+                    pickedPoints = [tmp_pickedPoints[2], tmp_pickedPoints[0], tmp_pickedPoints[1], tmp_pickedPoints[3]]
+
+                    points = vtk.vtkPoints()
+                    points.InsertNextPoint(pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.InsertNextPoint(pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.InsertNextPoint(pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.InsertNextPoint(pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    # Create the polygon
+                    polygon = vtk.vtkPolygon()
+                    polygon.GetPointIds().SetNumberOfIds(4)  # make a quad
+                    polygon.GetPointIds().SetId(0, 0)
+                    polygon.GetPointIds().SetId(1, 1)
+                    polygon.GetPointIds().SetId(2, 2)
+                    polygon.GetPointIds().SetId(3, 3)
+
+                    # Add the polygon to a list of polygons
+                    polygons = vtk.vtkCellArray()
+                    polygons.InsertNextCell(polygon)
+
+                    # Create a PolyData
+                    polygonPolyData = vtk.vtkPolyData()
+                    polygonPolyData.SetPoints(points)
+                    polygonPolyData.SetPolys(polygons)
+
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polygonPolyData)
+
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Red"))
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor1-WireFrame'] = actor
+
+                    points = vtk.vtkPoints()
+                    points.SetNumberOfPoints(4)
+                    points.SetPoint(0, pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.SetPoint(1, pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.SetPoint(2, pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.SetPoint(3, pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    polyLine = vtk.vtkCellArray()
+                    polyLine.InsertNextCell(5)
+                    polyLine.InsertCellPoint(0)
+                    polyLine.InsertCellPoint(1)
+                    polyLine.InsertCellPoint(2)
+                    polyLine.InsertCellPoint(3)
+                    polyLine.InsertCellPoint(0)
+
+                    # Create a PolyData
+                    polyLinePolyData = vtk.vtkPolyData()
+                    polyLinePolyData.SetPoints(points)
+                    polyLinePolyData.SetLines(polyLine)
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polyLinePolyData)
+                    mapper.Update()
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Red"))
+                    actor.GetProperty().SetLineWidth(5)
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor1-WireFrame-Wire'] = actor
 
                     points = vtk.vtkPoints()
                     points.InsertNextPoint(xx2[0][0], yy2[0][0], zz2[0][0])
@@ -456,8 +758,93 @@ def drMoVTKFunc():
                     actor.GetProperty().SetColor(colors.GetColor3d('Red'))
                     renderer.AddActor(actor)
                     maxX = max(maxX, max(map(max, xx2)))
+                    minX = max(minX, min(map(min, xx2)))
                     maxY = max(maxY, max(map(max, yy2)))
+                    minY = max(minY, min(map(min, yy2)))
+                    maxZ = max(maxZ, max(map(max, zz2)))
+                    minZ = max(minZ, min(map(min, zz2)))
+                    tmp_storeElementPatch.at['0', 'Actor2'] = actor
+                    # And now we render all the piers as dataframe and store their actor names
+                    tmp_pickedPoints = []
+                    for checkItemRow in np.arange(4):
+                        for checkItemCol in np.arange(2):
+                            addStat = True
+                            for currentItem in np.arange(len(tmp_pickedPoints)):
+                                if tmp_pickedPoints[currentItem] == [xx2WF[checkItemRow][checkItemCol],
+                                                                     yy2WF[checkItemRow][checkItemCol],
+                                                                     zz2WF[checkItemRow][checkItemCol]]:
+                                    addStat = False
+                                    continue
+                            if addStat:
+                                tmp_pickedPoints.append(
+                                    [xx2WF[checkItemRow][checkItemCol], yy2WF[checkItemRow][checkItemCol],
+                                     zz2WF[checkItemRow][checkItemCol]])
+                    pickedPoints = [tmp_pickedPoints[2], tmp_pickedPoints[0], tmp_pickedPoints[1], tmp_pickedPoints[3]]
+
+                    points = vtk.vtkPoints()
+                    points.InsertNextPoint(pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.InsertNextPoint(pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.InsertNextPoint(pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.InsertNextPoint(pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    # Create the polygon
+                    polygon = vtk.vtkPolygon()
+                    polygon.GetPointIds().SetNumberOfIds(4)  # make a quad
+                    polygon.GetPointIds().SetId(0, 0)
+                    polygon.GetPointIds().SetId(1, 1)
+                    polygon.GetPointIds().SetId(2, 2)
+                    polygon.GetPointIds().SetId(3, 3)
+
+                    # Add the polygon to a list of polygons
+                    polygons = vtk.vtkCellArray()
+                    polygons.InsertNextCell(polygon)
+
+                    # Create a PolyData
+                    polygonPolyData = vtk.vtkPolyData()
+                    polygonPolyData.SetPoints(points)
+                    polygonPolyData.SetPolys(polygons)
+
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polygonPolyData)
+
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Red"))
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor2-WireFrame'] = actor
+
+                    points = vtk.vtkPoints()
+                    points.SetNumberOfPoints(4)
+                    points.SetPoint(0, pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.SetPoint(1, pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.SetPoint(2, pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.SetPoint(3, pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    polyLine = vtk.vtkCellArray()
+                    polyLine.InsertNextCell(5)
+                    polyLine.InsertCellPoint(0)
+                    polyLine.InsertCellPoint(1)
+                    polyLine.InsertCellPoint(2)
+                    polyLine.InsertCellPoint(3)
+                    polyLine.InsertCellPoint(0)
+
+                    # Create a PolyData
+                    polyLinePolyData = vtk.vtkPolyData()
+                    polyLinePolyData.SetPoints(points)
+                    polyLinePolyData.SetLines(polyLine)
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polyLinePolyData)
+                    mapper.Update()
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Red"))
+                    actor.GetProperty().SetLineWidth(5)
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor2-WireFrame-Wire'] = actor
                 else:
+                    tmp_storeElementPatch.at['0', 'Element Type'] = "Wall - Spandrel"
                     spandrel = spandrel + 1
                     if spandrel == 1:
                         cSpandrels = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
@@ -483,7 +870,91 @@ def drMoVTKFunc():
                     actor.GetProperty().SetColor(colors.GetColor3d('Blue'))
                     renderer.AddActor(actor)
                     maxX = max(maxX, max(map(max, xx1)))
+                    minX = min(minX, min(map(min, xx1)))
                     maxY = max(maxY, max(map(max, yy1)))
+                    minY = min(minY, min(map(min, yy1)))
+                    maxZ = max(maxZ, max(map(max, zz1)))
+                    minZ = min(minZ, min(map(min, zz1)))
+                    tmp_storeElementPatch.at['0', 'Actor1'] = actor
+                    # And now we render all the piers as dataframe and store their actor names
+                    tmp_pickedPoints = []
+                    for checkItemRow in np.arange(4):
+                        for checkItemCol in np.arange(2):
+                            addStat = True
+                            for currentItem in np.arange(len(tmp_pickedPoints)):
+                                if tmp_pickedPoints[currentItem] == [xx1WF[checkItemRow][checkItemCol],
+                                                                     yy1WF[checkItemRow][checkItemCol],
+                                                                     zz1WF[checkItemRow][checkItemCol]]:
+                                    addStat = False
+                                    continue
+                            if addStat:
+                                tmp_pickedPoints.append(
+                                    [xx1WF[checkItemRow][checkItemCol], yy1WF[checkItemRow][checkItemCol],
+                                     zz1WF[checkItemRow][checkItemCol]])
+                    pickedPoints = [tmp_pickedPoints[2], tmp_pickedPoints[0], tmp_pickedPoints[1], tmp_pickedPoints[3]]
+
+                    points = vtk.vtkPoints()
+                    points.InsertNextPoint(pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.InsertNextPoint(pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.InsertNextPoint(pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.InsertNextPoint(pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    # Create the polygon
+                    polygon = vtk.vtkPolygon()
+                    polygon.GetPointIds().SetNumberOfIds(4)  # make a quad
+                    polygon.GetPointIds().SetId(0, 0)
+                    polygon.GetPointIds().SetId(1, 1)
+                    polygon.GetPointIds().SetId(2, 2)
+                    polygon.GetPointIds().SetId(3, 3)
+
+                    # Add the polygon to a list of polygons
+                    polygons = vtk.vtkCellArray()
+                    polygons.InsertNextCell(polygon)
+
+                    # Create a PolyData
+                    polygonPolyData = vtk.vtkPolyData()
+                    polygonPolyData.SetPoints(points)
+                    polygonPolyData.SetPolys(polygons)
+
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polygonPolyData)
+
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Blue"))
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor1-WireFrame'] = actor
+
+                    points = vtk.vtkPoints()
+                    points.SetNumberOfPoints(4)
+                    points.SetPoint(0, pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.SetPoint(1, pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.SetPoint(2, pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.SetPoint(3, pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    polyLine = vtk.vtkCellArray()
+                    polyLine.InsertNextCell(5)
+                    polyLine.InsertCellPoint(0)
+                    polyLine.InsertCellPoint(1)
+                    polyLine.InsertCellPoint(2)
+                    polyLine.InsertCellPoint(3)
+                    polyLine.InsertCellPoint(0)
+
+                    # Create a PolyData
+                    polyLinePolyData = vtk.vtkPolyData()
+                    polyLinePolyData.SetPoints(points)
+                    polyLinePolyData.SetLines(polyLine)
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polyLinePolyData)
+                    mapper.Update()
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Blue"))
+                    actor.GetProperty().SetLineWidth(5)
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor1-WireFrame-Wire'] = actor
 
                     points = vtk.vtkPoints()
                     points.InsertNextPoint(xx2[0][0], yy2[0][0], zz2[0][0])
@@ -505,13 +976,103 @@ def drMoVTKFunc():
                     actor.GetProperty().SetColor(colors.GetColor3d('Blue'))
                     renderer.AddActor(actor)
                     maxX = max(maxX, max(map(max, xx2)))
+                    minX = min(minX, min(map(min, xx2)))
                     maxY = max(maxY, max(map(max, yy2)))
+                    minY = min(minY, min(map(min, yy2)))
+                    maxZ = max(maxZ, max(map(max, zz2)))
+                    minZ = min(minZ, min(map(min, zz2)))
+                    tmp_storeElementPatch.at['0', 'Actor2'] = actor
+                    # And now we render all the piers as dataframe and store their actor names
+                    tmp_pickedPoints = []
+                    for checkItemRow in np.arange(4):
+                        for checkItemCol in np.arange(2):
+                            addStat = True
+                            for currentItem in np.arange(len(tmp_pickedPoints)):
+                                if tmp_pickedPoints[currentItem] == [xx2WF[checkItemRow][checkItemCol],
+                                                                     yy2WF[checkItemRow][checkItemCol],
+                                                                     zz2WF[checkItemRow][checkItemCol]]:
+                                    addStat = False
+                                    continue
+                            if addStat:
+                                tmp_pickedPoints.append(
+                                    [xx2WF[checkItemRow][checkItemCol], yy2WF[checkItemRow][checkItemCol],
+                                     zz2WF[checkItemRow][checkItemCol]])
+                    pickedPoints = [tmp_pickedPoints[2], tmp_pickedPoints[0], tmp_pickedPoints[1], tmp_pickedPoints[3]]
 
+                    points = vtk.vtkPoints()
+                    points.InsertNextPoint(pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.InsertNextPoint(pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.InsertNextPoint(pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.InsertNextPoint(pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    # Create the polygon
+                    polygon = vtk.vtkPolygon()
+                    polygon.GetPointIds().SetNumberOfIds(4)  # make a quad
+                    polygon.GetPointIds().SetId(0, 0)
+                    polygon.GetPointIds().SetId(1, 1)
+                    polygon.GetPointIds().SetId(2, 2)
+                    polygon.GetPointIds().SetId(3, 3)
+
+                    # Add the polygon to a list of polygons
+                    polygons = vtk.vtkCellArray()
+                    polygons.InsertNextCell(polygon)
+
+                    # Create a PolyData
+                    polygonPolyData = vtk.vtkPolyData()
+                    polygonPolyData.SetPoints(points)
+                    polygonPolyData.SetPolys(polygons)
+
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polygonPolyData)
+
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Blue"))
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor2-WireFrame'] = actor
+
+                    points = vtk.vtkPoints()
+                    points.SetNumberOfPoints(4)
+                    points.SetPoint(0, pickedPoints[0][0], pickedPoints[0][1], pickedPoints[0][2])
+                    points.SetPoint(1, pickedPoints[1][0], pickedPoints[1][1], pickedPoints[1][2])
+                    points.SetPoint(2, pickedPoints[2][0], pickedPoints[2][1], pickedPoints[2][2])
+                    points.SetPoint(3, pickedPoints[3][0], pickedPoints[3][1], pickedPoints[3][2])
+
+                    polyLine = vtk.vtkCellArray()
+                    polyLine.InsertNextCell(5)
+                    polyLine.InsertCellPoint(0)
+                    polyLine.InsertCellPoint(1)
+                    polyLine.InsertCellPoint(2)
+                    polyLine.InsertCellPoint(3)
+                    polyLine.InsertCellPoint(0)
+
+                    # Create a PolyData
+                    polyLinePolyData = vtk.vtkPolyData()
+                    polyLinePolyData.SetPoints(points)
+                    polyLinePolyData.SetLines(polyLine)
+                    # Create a mapper and actor
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputData(polyLinePolyData)
+                    mapper.Update()
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(mapper)
+                    actor.GetProperty().SetColor(colors.GetColor3d("Blue"))
+                    actor.GetProperty().SetLineWidth(5)
+                    renderer.AddActor(actor)
+                    tmp_storeElementPatch.at['0', 'Actor2-WireFrame-Wire'] = actor
+
+                tmp_storeElementPatch_list.append(tmp_storeElementPatch.values.tolist()[0])
+
+    tmp_storeElementPatch = empty_tmp_storeElementPatch.copy(deep=True)
     # Draw rigid beams in undeformed configuration
     sizeBeams = 0.35
     for item in np.arange(totalElements):
         if impElement['type'].iloc[item] == "ElasticBeam" or impElement['type'].iloc[item] == "NonlinearBeam":
             if elementWallNo != 0:
+                tmp_storeElementPatch.at['0', 'Object No.'] = impElement.index[item]
+                tmp_storeElementPatch.at['0', 'Object Type'] = "Element"
+                tmp_storeElementPatch.at['0', 'Element Type'] = impElement['type'].iloc[item]
                 nWall = impElement['wall'].iloc[item]
                 v_or = impWall.at[int(nWall), 'zAxis']
                 v_or = np.array([v_or]).transpose()  # transpose to convert the variable to a column vector
@@ -532,6 +1093,8 @@ def drMoVTKFunc():
                 zAxisRotJ = v_or
                 t = sizeBeams
                 [xx1, yy1, zz1] = addWallToPatch(nodeI, nodeJ, zAxisRotI, sizeBeams, t, [[0], [0], [0]], [[0], [0], [0]], "wireframe")
+                tmp_storeElementPatch.at['0', 'Bounds1'] = [np.amin(xx1), np.amax(xx1), np.amin(yy1), np.amax(yy1),
+                                                            np.amin(zz1), np.amax(zz1)]
                 points = vtk.vtkPoints()
                 points.InsertNextPoint(xx1[0][0], yy1[0][0], zz1[0][0])
                 points.InsertNextPoint(xx1[1][0], yy1[1][0], zz1[1][0])
@@ -552,22 +1115,45 @@ def drMoVTKFunc():
                 actor.GetProperty().SetColor(colors.GetColor3d('Silver'))
                 renderer.AddActor(actor)
                 maxX = max(maxX, max(map(max, xx1)))
+                minX = min(minX, min(map(min, xx1)))
                 maxY = max(maxY, max(map(max, yy1)))
+                minY = min(minY, min(map(min, yy1)))
+                maxZ = max(maxZ, max(map(max, zz1)))
+                minZ = min(minZ, min(map(min, zz1)))
+                tmp_storeElementPatch.at['0', 'Actor1'] = actor
+                tmp_storeElementPatch_list.append(tmp_storeElementPatch.values.tolist()[0])
 
+    tmp_storeElementPatch = empty_tmp_storeElementPatch.copy(deep=True)
     # Plot the floors
     nRows = np.size(xDir4, 0)
     nCols = np.size(xDir4, 1)
 
-    startPoint = [maxX, 0, 0]
-    endPoint = [maxX + 1, 0, 0]
-    zAxis = [0, 0, 1]
-    mkXaxis = arrowMaker(startPoint, endPoint, zAxis, 'Cyan')
+    # Add global axes
+    axes = vtk.vtkAxesActor()
+    # Change the properties of the axes and their corresponding text
+    axes.GetXAxisCaptionActor2D().GetTextActor().SetTextScaleModeToNone()
+    axes.GetXAxisCaptionActor2D().GetCaptionTextProperty().SetFontSize(50)
+    axes.GetXAxisCaptionActor2D().GetCaptionTextProperty().SetColor(1, 0, 0)
 
-    startPoint = [0, maxY, 0]
-    endPoint = [0, maxY + 1, 0]
-    mkXaxis = arrowMaker(startPoint, endPoint, zAxis, 'Cyan')
+    axes.GetYAxisCaptionActor2D().GetTextActor().SetTextScaleModeToNone()
+    axes.GetYAxisCaptionActor2D().GetCaptionTextProperty().SetFontSize(50)
+    axes.GetYAxisCaptionActor2D().GetCaptionTextProperty().SetColor(0, 1, 0)
 
+    axes.GetZAxisCaptionActor2D().GetTextActor().SetTextScaleModeToNone()
+    axes.GetZAxisCaptionActor2D().GetCaptionTextProperty().SetFontSize(50)
+    axes.GetZAxisCaptionActor2D().GetCaptionTextProperty().SetColor(0, 0, 1)
 
+    #  The axes are positioned with a user transform
+    #axes.SetUserTransform(transform)
+
+    # properties of the axes labels can be set as follows
+    # this sets the x axis label to red
+    # axes->GetXAxisCaptionActor2D()->GetCaptionTextProperty()->SetColor(1,0,0);
+
+    # the actual text of the axis label can be changed:
+    # axes->SetXAxisLabelText("test");
+
+    renderer.AddActor(axes)
 
     tmp_nodeCount = 0
     for colItem in np.arange(nCols):
@@ -589,6 +1175,18 @@ def drMoVTKFunc():
     renderer.GetActiveCamera().Pitch(90)
     renderer.GetActiveCamera().Elevation(30)
     renderWindow.Render()
+    balloonWidget.EnabledOn()
     # renderWindowInteractor.Initialize()
 
-    return impElement, impNode, impWall, impFloor, impPolygon, impMaterial, impAnalysis, renderer
+    storeElementPatch = pd.DataFrame(tmp_storeElementPatch_list, columns=['Object No.', 'Bounds1', 'Bounds2',
+                                                                          'Bounds1-WireFrame', 'Bounds2-WireFrame',
+                                                                          'Object Type', 'Element Type', 'Node Type',
+                                                                          'Actor1', 'Actor2', 'Actor1-WireFrame',
+                                                                          'Actor2-WireFrame', 'Actor1-WireFrame-Wire',
+                                                                          'Actor2-WireFrame-Wire', 'Actor1-WireFrame-Node'])
+    storeElementPatch.set_index('Object No.', inplace=True)
+
+    restraintActors = pd.DataFrame(tmp_restraintActors_list, columns=['Node', 'Fx', 'Fy', 'Fz', 'Rx', 'Ry', 'Actor1', 'Actor2'])
+    restraintActors.set_index('Node', inplace=True)
+
+    return impElement, impNode, impWall, impFloor, impPolygon, impMaterial, impAnalysis, impRestraint, impFixConstraint, impW2wConstraint, impF2wConstraint, renderer, maxX, minX, maxY, minY, maxZ, minZ, storeElementPatch, restraintActors
