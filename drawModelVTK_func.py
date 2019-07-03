@@ -66,8 +66,6 @@ class arrowMaker(vtk.vtkActor):
         renderer.AddActor(self)
 
 
-
-
 def addWallToPatch(f_node_I, f_node_J, f_v_or, f_L, f_t, f_off_I, f_off_J, f_style):
     f_L = f_L
     f_t = f_t
@@ -265,27 +263,27 @@ def drMoVTKFunc():
     balloonWidget.SetRepresentation(balloonRep)
 
     for item in np.arange(totalElements):
-        if impElement['type'].iloc[item] == "FloorShell":
-            if len(impElement['nodeVec'].iloc[item]) == 4:
+        if impElement['type'].iat[item] == "FloorShell":
+            if len(impElement['nodeVec'].iat[item]) == 4:
                 tmp_storeElementPatch.at['0', 'Object No.'] = impElement.index[item]
                 tmp_storeElementPatch.at['0', 'Object Type'] = "Element"
                 tmp_storeElementPatch.at['0', 'Element Type'] = "FloorShell"
                 floorToPlot = floorToPlot + 1
                 xx = [
-                    impNode.at[impElement['nodeVec'].iloc[item][0], 'x'],
-                    impNode.at[impElement['nodeVec'].iloc[item][1], 'x'],
-                    impNode.at[impElement['nodeVec'].iloc[item][2], 'x'],
-                    impNode.at[impElement['nodeVec'].iloc[item][3], 'x']]
+                    impNode.at[impElement['nodeVec'].iat[item][0], 'x'],
+                    impNode.at[impElement['nodeVec'].iat[item][1], 'x'],
+                    impNode.at[impElement['nodeVec'].iat[item][2], 'x'],
+                    impNode.at[impElement['nodeVec'].iat[item][3], 'x']]
                 yy = [
-                    impNode.at[impElement['nodeVec'].iloc[item][0], 'y'],
-                    impNode.at[impElement['nodeVec'].iloc[item][1], 'y'],
-                    impNode.at[impElement['nodeVec'].iloc[item][2], 'y'],
-                    impNode.at[impElement['nodeVec'].iloc[item][3], 'y']]
+                    impNode.at[impElement['nodeVec'].iat[item][0], 'y'],
+                    impNode.at[impElement['nodeVec'].iat[item][1], 'y'],
+                    impNode.at[impElement['nodeVec'].iat[item][2], 'y'],
+                    impNode.at[impElement['nodeVec'].iat[item][3], 'y']]
                 zz = [
-                    impNode.at[impElement['nodeVec'].iloc[item][0], 'z'],
-                    impNode.at[impElement['nodeVec'].iloc[item][1], 'z'],
-                    impNode.at[impElement['nodeVec'].iloc[item][2], 'z'],
-                    impNode.at[impElement['nodeVec'].iloc[item][3], 'z']]
+                    impNode.at[impElement['nodeVec'].iat[item][0], 'z'],
+                    impNode.at[impElement['nodeVec'].iat[item][1], 'z'],
+                    impNode.at[impElement['nodeVec'].iat[item][2], 'z'],
+                    impNode.at[impElement['nodeVec'].iat[item][3], 'z']]
                 tmp_storeElementPatch.at['0', 'Bounds1'] = [np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy),
                                                             np.amin(zz), np.amax(zz)]
                 tmp_storeElementPatch.at['0', 'Bounds1-WireFrame'] = [np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy),
@@ -364,12 +362,12 @@ def drMoVTKFunc():
                 tmp_storeElementPatch.at['0', 'Actor1-WireFrame-Wire'] = actor
 
                 center = [np.mean(xx), np.mean(yy), np.mean(zz)]
-                baseLength = impElement['b'].iloc[item]
+                baseLength = impElement['b'].iat[item]
                 arrowLength = 1/4 * baseLength
                 arrowTip = 1/3 * arrowLength
                 arrowWidth = 1/1.5 * arrowTip
-                xAxis = impElement['xAxis'].iloc[item]
-                zAxis = impFloor.at[int(impElement['floor'].iloc[item]), 'zAxis']
+                xAxis = impElement['xAxis'].iat[item]
+                zAxis = impFloor.at[int(impElement['floor'].iat[item]), 'zAxis']
                 yAxis = np.cross(zAxis, xAxis)
                 xx = [center[0] - (arrowLength - arrowTip) * xAxis[0] - arrowWidth * yAxis[0],
                       center[0] - arrowLength * xAxis[0], center[0] + arrowLength * xAxis[0],
@@ -435,18 +433,18 @@ def drMoVTKFunc():
             test = impNode.index[item]
             sub_count = sub_polygon['xDim'].count()
             for sub_item in np.arange(sub_count):
-                nWall = impNode['wall'].iloc[item]
-                nodeI = sub_polygon['blCorner'].iloc[sub_item] + np.dot(impWall.at[nWall, 'xAxis'],
-                                                                        sub_polygon['xDim'].iloc[sub_item] / 2)
+                nWall = impNode['wall'].iat[item]
+                nodeI = sub_polygon['blCorner'].iat[sub_item] + np.dot(impWall.at[nWall, 'xAxis'],
+                                                                        sub_polygon['xDim'].iat[sub_item] / 2)
                 nodeI = np.array([nodeI]).transpose()  # transpose to convert the variable to a column vector
-                nodeJ = sub_polygon['blCorner'].iloc[sub_item] + np.dot(impWall.at[nWall, 'xAxis'],
-                                                                        sub_polygon['xDim'].iloc[sub_item] / 2) + \
-                        np.dot(impWall.at[nWall, 'yAxis'], sub_polygon['yDim'].iloc[sub_item])
+                nodeJ = sub_polygon['blCorner'].iat[sub_item] + np.dot(impWall.at[nWall, 'xAxis'],
+                                                                        sub_polygon['xDim'].iat[sub_item] / 2) + \
+                        np.dot(impWall.at[nWall, 'yAxis'], sub_polygon['yDim'].iat[sub_item])
                 nodeJ = np.array([nodeJ]).transpose()  # transpose to convert the variable to a column vector
                 v_or = impWall.at[nWall, 'zAxis']
                 v_or = np.array([v_or]).transpose()  # transpose to convert the variable to a column vector
-                L = sub_polygon['xDim'].iloc[sub_item]
-                t = sub_polygon['t'].iloc[sub_item]
+                L = sub_polygon['xDim'].iat[sub_item]
+                t = sub_polygon['t'].iat[sub_item]
                 wallPatch = wallPatch + 1
                 [xx, yy, zz] = addWallToPatch(nodeI, nodeJ, v_or, L, t, [[0], [0], [0]], [[0], [0], [0]], 'wireframe')
                 [xxWF, yyWF, zzWF] = addWallToPatch(nodeI, nodeJ, v_or, L, 0, [[0], [0], [0]], [[0], [0], [0]], 'wireframe')
@@ -589,20 +587,20 @@ def drMoVTKFunc():
     pier = 0
     spandrel = 0
     for item in np.arange(totalElements):
-        if impElement['wall'].iloc[item] == impElement['wall'].iloc[item]:  # will return false if the value is nan
+        if impElement['wall'].iat[item] == impElement['wall'].iat[item]:  # will return false if the value is nan
             elementWallNo = elementWallNo + 1
     for item in np.arange(totalElements):
-        if impElement['type'].iloc[item] == "Macroelement3d":
+        if impElement['type'].iat[item] == "Macroelement3d":
             if elementWallNo != 0:
                 tmp_storeElementPatch.at['0', 'Object No.'] = impElement.index[item]
                 tmp_storeElementPatch.at['0', 'Object Type'] = "Element"
-                nWall = impElement['wall'].iloc[item]
+                nWall = impElement['wall'].iat[item]
                 v_or = impWall.at[int(nWall), 'zAxis']
                 v_or = np.array([v_or]).transpose()  # transpose to convert the variable to a column vector
 
-                nodeE = impNode.at[int(impElement['nodeE'].iloc[item]), 'pos']
+                nodeE = impNode.at[int(impElement['nodeE'].iat[item]), 'pos']
                 nodeE = np.array([nodeE]).transpose()  # transpose to convert the variable to a column vector
-                tmp_val = np.dot(0.5 * impElement['h'].iloc[item], impElement['xAxis'].iloc[item])
+                tmp_val = np.dot(0.5 * impElement['h'].iat[item], impElement['xAxis'].iat[item])
                 tmp_val = np.array([tmp_val]).transpose()  # transpose to convert the variable to a column vector
                 nodeI = nodeE - tmp_val
                 nodeJ = nodeE + tmp_val
@@ -613,23 +611,24 @@ def drMoVTKFunc():
                 zAxisRotI = v_or
                 zAxisRotJ = v_or
                 shift = 0
-                t = impElement['t'].iloc[item]
-                [xx1, yy1, zz1] = addWallToPatch(nodeI, nodeE1, zAxisRotI, impElement['b'].iloc[item],
+                t = impElement['t'].iat[item]
+
+                [xx1, yy1, zz1] = addWallToPatch(nodeI, nodeE1, zAxisRotI, impElement['b'].iat[item],
                                                  t, [[0], [0], [0]], [[0], [0.5 * shift], [0]], "wireframe")
-                [xx1WF, yy1WF, zz1WF] = addWallToPatch(nodeI, nodeE1, zAxisRotI, impElement['b'].iloc[item] * 0.01,
+                [xx1WF, yy1WF, zz1WF] = addWallToPatch(nodeI, nodeE1, zAxisRotI, impElement['b'].iat[item] * 0.01,
                                                  0, [[0], [0], [0]], [[0], [0.5 * shift], [0]], "wireframe")
                 tmp_storeElementPatch.at['0', 'Bounds1'] = [np.amin(xx1), np.amax(xx1), np.amin(yy1), np.amax(yy1), np.amin(zz1), np.amax(zz1)]
                 tmp_storeElementPatch.at['0', 'Bounds1-WireFrame'] = [np.amin(xx1WF), np.amax(xx1WF), np.amin(yy1WF), np.amax(yy1WF),
                                                             np.amin(zz1WF), np.amax(zz1WF)]
-                [xx2, yy2, zz2] = addWallToPatch(nodeE2, nodeJ, zAxisRotJ, impElement['b'].iloc[item],
+                [xx2, yy2, zz2] = addWallToPatch(nodeE2, nodeJ, zAxisRotJ, impElement['b'].iat[item],
                                                  t, [[0], [0.5 * shift], [0]], [[0], [0], [0]], "wireframe")
-                [xx2WF, yy2WF, zz2WF] = addWallToPatch(nodeE2, nodeJ, zAxisRotJ, impElement['b'].iloc[item] * 0.01,
+                [xx2WF, yy2WF, zz2WF] = addWallToPatch(nodeE2, nodeJ, zAxisRotJ, impElement['b'].iat[item] * 0.01,
                                                  0, [[0], [0.5 * shift], [0]], [[0], [0], [0]], "wireframe")
                 tmp_storeElementPatch.at['0', 'Bounds2'] = [np.amin(xx2), np.amax(xx2), np.amin(yy2), np.amax(yy2), np.amin(zz2), np.amax(zz2)]
                 tmp_storeElementPatch.at['0', 'Bounds2-WireFrame'] = [np.amin(xx2WF), np.amax(xx2WF), np.amin(yy2WF), np.amax(yy2WF),
                                                             np.amin(zz2WF), np.amax(zz2WF)]
 
-                if abs(np.dot([[0, 0, 1]], impElement['xAxis'].iloc[item]) > 0.9):
+                if abs(np.dot([[0, 0, 1]], impElement['xAxis'].iat[item]) > 0.9):
                     tmp_storeElementPatch.at['0', 'Element Type'] = "Wall - Pier"
                     pier = pier + 1
                     if pier == 1:
@@ -1068,25 +1067,25 @@ def drMoVTKFunc():
     # Draw rigid beams in undeformed configuration
     sizeBeams = 0.35
     for item in np.arange(totalElements):
-        if impElement['type'].iloc[item] == "ElasticBeam" or impElement['type'].iloc[item] == "NonlinearBeam":
+        if impElement['type'].iat[item] == "ElasticBeam" or impElement['type'].iat[item] == "NonlinearBeam":
             if elementWallNo != 0:
                 tmp_storeElementPatch.at['0', 'Object No.'] = impElement.index[item]
                 tmp_storeElementPatch.at['0', 'Object Type'] = "Element"
-                tmp_storeElementPatch.at['0', 'Element Type'] = impElement['type'].iloc[item]
-                nWall = impElement['wall'].iloc[item]
+                tmp_storeElementPatch.at['0', 'Element Type'] = impElement['type'].iat[item]
+                nWall = impElement['wall'].iat[item]
                 v_or = impWall.at[int(nWall), 'zAxis']
                 v_or = np.array([v_or]).transpose()  # transpose to convert the variable to a column vector
 
-                if np.isnan(impElement['offsetI'].iloc[item]).any():
-                    nodeI = impNode.at[impElement['nodeI'].iloc[item], 'pos']
+                if np.isnan(impElement['offsetI'].iat[item]).any():
+                    nodeI = impNode.at[impElement['nodeI'].iat[item], 'pos']
                 else:
-                    nodeI = impNode.at[impElement['nodeI'].iloc[item], 'pos'] + impElement['offsetI'].iloc[item]
+                    nodeI = impNode.at[impElement['nodeI'].iat[item], 'pos'] + impElement['offsetI'].iat[item]
 
-                if np.isnan(impElement['offsetJ'].iloc[item]).any():
-                    nodeJ = impNode.at[impElement['nodeJ'].iloc[item], 'pos']
+                if np.isnan(impElement['offsetJ'].iat[item]).any():
+                    nodeJ = impNode.at[impElement['nodeJ'].iat[item], 'pos']
                 else:
-                    nodeJ = impNode.at[impElement['nodeJ'].iloc[item], 'pos'] +\
-                            impElement['offsetJ'].iloc[item]
+                    nodeJ = impNode.at[impElement['nodeJ'].iat[item], 'pos'] +\
+                            impElement['offsetJ'].iat[item]
                 nodeI = np.array([nodeI]).transpose()
                 nodeJ = np.array([nodeJ]).transpose()
                 zAxisRotI = v_or

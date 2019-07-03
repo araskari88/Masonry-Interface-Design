@@ -61,14 +61,14 @@ def CONVtriOPSfunc():
     impN3d = Tremuri_Input_func.n3d.copy(deep=True)
     impPoly3d1 = Tremuri_Input_func.poly3d1.copy(deep=True)
     impPoly3d2 = Tremuri_Input_func.poly3d2.copy(deep=True)
-    impMaxNodeNumber = Tremuri_Input_func.maxNodeNumber
+    impMaxNodeNumber = Tremuri_Input_func.max_node_number
     impElement = Tremuri_Input_func.element.copy(deep=True)
-    impElasticBeam = Tremuri_Input_func.elasticBeam.copy(deep=True)
-    impNlBeam = Tremuri_Input_func.nlBeam.copy(deep=True)
-    impFloorLevel = Tremuri_Input_func.floorLevel.copy(deep=True)
+    impElasticBeam = Tremuri_Input_func.elastic_beam.copy(deep=True)
+    impNlBeam = Tremuri_Input_func.nl_beam.copy(deep=True)
+    impFloorLevel = Tremuri_Input_func.floor_level.copy(deep=True)
     impFloor = Tremuri_Input_func.floor.copy(deep=True)
     impMaterial = Tremuri_Input_func.material.copy(deep=True)
-    impNodalMass = Tremuri_Input_func.nodalMass.copy(deep=True)
+    impNodalMass = Tremuri_Input_func.nodal_mass.copy(deep=True)
     impRestraint = Tremuri_Input_func.restraint.copy(deep=True)
     impAnalysis = Tremuri_Input_func.analysis.copy(deep=True)
 

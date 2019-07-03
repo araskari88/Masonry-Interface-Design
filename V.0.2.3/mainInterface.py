@@ -11,9 +11,6 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 import vtk
-import os
-import re
-import readAnalysis_func
 
 colors = vtk.vtkNamedColors()
 # define necessary functions
@@ -85,7 +82,6 @@ class mainActions():
                 if info.completeSuffix() == 'txt':
                     appMode = "Tremuri"
                     import drawModelVTK_func
-                    #import readAnalysis_func
                     drawModelVTK_func.completeFileLocation3 = path
                     drawModelVTK_func.drMoVTKFunc()
                     structureFrame = QtGui.QFrame()
@@ -414,7 +410,7 @@ class mainActions():
                     topIconToolbarLayout.addWidget(topToolbarDown, Qt.AlignLeft)
                     topToolbarDown.setStyleSheet(toolbarIconStyleSheet1 + toolbarIconStyleSheet2 + toolbarIconStyleSheet3)
 
-                    iconSeparator3 = QFrame()
+                    iconSeparator3 = QFrame();
                     iconSeparator3.setFrameShape(QFrame.VLine)
                     topIconToolbarLayout.addWidget(iconSeparator3, Qt.AlignLeft)
 
@@ -449,53 +445,7 @@ class mainActions():
                         toolbarIconStyleSheet1 + toolbarIconStyleSheet2 + toolbarIconStyleSheet3)
                     self.renderType(self.renderer, "solid", topToolbarTogglefill)
 
-                    iconSeparator4 = QFrame()
-                    iconSeparator4.setFrameShape(QFrame.VLine)
-                    topIconToolbarLayout.addWidget(iconSeparator4, Qt.AlignLeft)
 
-                    topToolbarRunAnalysis = QPushButton()
-                    topToolbarRunAnalysis.setFixedWidth(25)
-                    topToolbarRunAnalysis.setIcon(QIcon("RunIcon.png"))
-                    topToolbarRunAnalysis.setIconSize(QSize(25, 25))
-                    topToolbarRunAnalysis.setToolTip('Run Analysis')
-                    topToolbarRunAnalysis.clicked.connect(lambda: runAnalysis())
-                    topIconToolbarLayout.addWidget(topToolbarRunAnalysis, Qt.AlignLeft)
-                    topToolbarRunAnalysis.setStyleSheet(
-                        toolbarIconStyleSheet1 + toolbarIconStyleSheet2 + toolbarIconStyleSheet3)
-
-                    topToolbarAnalysisOptions = QPushButton()
-                    topToolbarAnalysisOptions.setFixedWidth(25)
-                    topToolbarAnalysisOptions.setIcon(QIcon("AnalysisOptIcon.png"))
-                    topToolbarAnalysisOptions.setIconSize(QSize(25, 25))
-                    topToolbarAnalysisOptions.setToolTip('Analysis Options...')
-                    topToolbarAnalysisOptions.clicked.connect(lambda: runAnalysis())
-                    topIconToolbarLayout.addWidget(topToolbarAnalysisOptions, Qt.AlignLeft)
-                    topToolbarAnalysisOptions.setStyleSheet(
-                        toolbarIconStyleSheet1 + toolbarIconStyleSheet2 + toolbarIconStyleSheet3)
-
-                    iconSeparator5 = QFrame()
-                    iconSeparator5.setFrameShape(QFrame.VLine)
-                    topIconToolbarLayout.addWidget(iconSeparator5, Qt.AlignLeft)
-
-                    topToolbarRunAnalysis = QPushButton()
-                    topToolbarRunAnalysis.setFixedWidth(25)
-                    topToolbarRunAnalysis.setIcon(QIcon("UnDfrmd.png"))
-                    topToolbarRunAnalysis.setIconSize(QSize(25, 25))
-                    topToolbarRunAnalysis.setToolTip('Undeforemd Shape')
-                    topToolbarRunAnalysis.clicked.connect(lambda: runAnalysis())
-                    topIconToolbarLayout.addWidget(topToolbarRunAnalysis, Qt.AlignLeft)
-                    topToolbarRunAnalysis.setStyleSheet(
-                        toolbarIconStyleSheet1 + toolbarIconStyleSheet2 + toolbarIconStyleSheet3)
-
-                    topToolbarAnalysisOptions = QPushButton()
-                    topToolbarAnalysisOptions.setFixedWidth(25)
-                    topToolbarAnalysisOptions.setIcon(QIcon("Dfrmd.png"))
-                    topToolbarAnalysisOptions.setIconSize(QSize(25, 25))
-                    topToolbarAnalysisOptions.setToolTip('Deformed Shape...')
-                    topToolbarAnalysisOptions.clicked.connect(lambda: self.deformedShape())
-                    topIconToolbarLayout.addWidget(topToolbarAnalysisOptions, Qt.AlignLeft)
-                    topToolbarAnalysisOptions.setStyleSheet(
-                        toolbarIconStyleSheet1 + toolbarIconStyleSheet2 + toolbarIconStyleSheet3)
 
                     topIconToolbar.setLayout(topIconToolbarLayout)
                     structureLayout.addWidget(topIconToolbar, 0, 0, 1, 2, Qt.AlignLeft)
@@ -804,255 +754,7 @@ class mainActions():
 
         renderer.GetRenderWindow().Render()
 
-    def deformedShape(self):
-        deformedShapeDialog = QtGui.QDialog()
-        deformedShapeDialog.setWindowTitle("Define Analysis Cases")
-        deformedShapeDialogLayout = QGridLayout()
-        deformedShapeDialogBtn = QWidget()
-        deformedShapeDialogBtnLayout = QGridLayout()
-        AnalysisCaseSelecList = []
 
-        for analysisItem in np.arange(analysis['type'].count()):
-            if analysis["type"].iat[analysisItem] == "Dynamic":
-                wTxtAnType = "Transient"
-                wTxtAnSubType = " - Time History"
-            elif analysis["type"].iat[analysisItem] == "selfWeight":
-                wTxtAnType = "Static"
-                wTxtAnSubType = " - Gravity"
-            elif analysis["type"].iat[analysisItem] == "PushoverRectangular":
-                wTxtAnType = "Static"
-                wTxtAnSubType = " - Pushover"
-            elif analysis["type"].iat[analysisItem] == "Modal":
-                wTxtAnType = "Modal"
-                wTxtAnSubType = ""
-            AnalysisCaseSelecList.append(str(analysis.index.to_list()[analysisItem]) + ' - ' + wTxtAnType + wTxtAnSubType)
-
-        AnalysisCaseTtl = QLabel("Analysis Case")
-        AnalysisCaseSelec = QComboBox()
-        for AnalysisCaseItem in AnalysisCaseSelecList:
-            AnalysisCaseSelec.addItem(AnalysisCaseItem)
-        AnalysisCaseSelec.setCurrentIndex(0)
-
-        scaleFactorTtl = QLabel("Scale Factor")
-        deformedShapeScaleFactor = QLineEdit(str(1.0))
-
-        display_dt_ttl = QLabel("Display dt")
-        display_dt = QLineEdit(str(0.2))
-        display_dt.setDisabled(True)
-
-        dt, ultimate_time = AnalysisCaseSelec.currentIndexChanged.connect(lambda: self.read_analysis_change(AnalysisCaseSelec, display_dt))
-
-        # Add a button
-        applyDeformedShapeBtn = QPushButton('Apply', deformedShapeDialogBtn)
-        applyDeformedShapeBtn.setToolTip('Click to Apply')
-        applyDeformedShapeBtn.clicked.connect(lambda: self.plotDeformed(deformedShapeScaleFactor, AnalysisCaseSelec, deformedShapeDialog, dt, display_dt, ultimate_time))
-        applyDeformedShapeBtn.resize(applyDeformedShapeBtn.sizeHint())
-        applyDeformedShapeBtn.move(100, 80)
-
-        cancelDeformedShapeBtn = QPushButton('Cancel', deformedShapeDialogBtn)
-        cancelDeformedShapeBtn.setToolTip('Cancel Modifications')
-        cancelDeformedShapeBtn.clicked.connect(deformedShapeDialog.close)
-        cancelDeformedShapeBtn.resize(cancelDeformedShapeBtn.sizeHint())
-        cancelDeformedShapeBtn.move(100, 80)
-
-        deformedShapeDialogLayout.addWidget(AnalysisCaseTtl, 1, 1)
-        deformedShapeDialogLayout.addWidget(AnalysisCaseSelec, 2, 1)
-        deformedShapeDialogLayout.addWidget(scaleFactorTtl, 3, 1)
-        deformedShapeDialogLayout.addWidget(deformedShapeScaleFactor, 4, 1)
-        deformedShapeDialogLayout.addWidget(display_dt_ttl, 3, 2)
-        deformedShapeDialogLayout.addWidget(display_dt, 4, 2)
-        deformedShapeDialogLayout.addWidget(deformedShapeDialogBtn, 1, 2, 2, 1)
-        deformedShapeDialogBtnLayout.addWidget(applyDeformedShapeBtn, 0, 0)
-        deformedShapeDialogBtnLayout.addWidget(cancelDeformedShapeBtn, 0, 1)
-        deformedShapeDialog.setLayout(deformedShapeDialogLayout)
-        deformedShapeDialogBtn.setLayout(deformedShapeDialogBtnLayout)
-        deformedShapeDialog.setFixedSize(400, 150)
-
-        if deformedShapeDialog.exec_() == QtGui.QDialog.Accepted:
-            deformedShapeDialog.show()
-        return tmp_analysis, deformedShapeDialog
-
-    def read_analysis_change(self, anlz_case, display_dt):
-        tmp_cwd = os.getcwd()
-        tmp_cwd = str(tmp_cwd).replace('\\', '/')
-        OUTPUTfilePath = tmp_cwd + "/" + "output/"
-        fileName = "analysis" + str(anlz_case.currentIndex() + 1) + "_" + analysis["type"].iat[
-            anlz_case.currentIndex()] + "_" + "allDispl.out"
-        fileLocation = OUTPUTfilePath + fileName
-
-        open_file = open(fileLocation, "r")  # Open the Tremuri file
-        input_file = open_file.read()  # Read the Tremuri file
-
-        # read the lines of the input file
-        lines = input_file.splitlines()  # split the lines of the input file
-        open_file.close()  # close the input file after reading its data
-        dt = float(lines[0].split()[0])
-        ultimate_time = float(lines[-1].split()[0])
-
-        display_dt.setDisabled(False)
-        display_dt.setText(str(dt))
-
-        return dt, ultimate_time
-
-    def plotDeformed(self, scale_factor, anlz_case, dialog, dt, display_dt, ultimate_time):
-        import convertTremuriToOpensees_func
-        import drawModelVTK_func
-        scale = float(scale_factor.text())
-        tmp_cwd = os.getcwd()
-        tmp_cwd = str(tmp_cwd).replace('\\', '/')
-        OUTPUTfilePath = tmp_cwd + "/" + "output/"
-        fileName = "analysis" + str(anlz_case.currentIndex() + 1) + "_" + analysis["type"].iat[anlz_case.currentIndex()] + "_" + "allDispl.out"
-        readAnalysis_func.completeFileLocation4 = OUTPUTfilePath + fileName
-        readAnalysis_func.analysisType = analysis["type"].iat[anlz_case.currentIndex()]
-        nodeList = node.index.to_list()
-        readAnalysis_func.nodeList = nodeList
-        readAnalysis_func.display_dt = display_dt
-        readAnalysis_func.ultimate_time = ultimate_time
-        readAnalysis_func.dt = dt
-        node_disps, num_dt = readAnalysis_func.read_anlz_func()
-        node_disps_backup = node_disps.copy(deep=True)
-
-        # These are the point ids corresponding to each face.
-        faces = [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]
-        faceId = vtk.vtkIdList()
-        faceId.InsertNextId(6)  # Six faces make up the cell.
-        for face in faces:
-            faceId.InsertNextId(len(face))  # The number of points in the face.
-            [faceId.InsertNextId(i) for i in face]
-
-        totalStoredPatches = len(storeElementPatch.index.to_list())
-        for dt in np.arange(num_dt):
-            node_disps = node_disps_backup[dt * len(nodeList):(dt + 1) * len(nodeList)]
-            node_disps = node_disps.set_index('Node')
-            for item in np.arange(totalStoredPatches):
-                # Calculating the deformed coordinates of the nodes
-                if storeElementPatch['Object Type'].iat[item] == "Element" \
-                        and (storeElementPatch['Element Type'].iat[item] == "Wall - Pier"
-                             or storeElementPatch['Element Type'].iat[item] == "Wall - Spandrel"):
-                    nodeE = node.at[int(element.at[storeElementPatch.index[item], 'nodeE']), 'pos']
-                    nodeE = np.array([nodeE]).transpose()  # transpose to convert the variable to a column vector
-
-                    tmp_val = np.dot(0.5 * element.at[storeElementPatch.index[item], 'h'], element.at[storeElementPatch.index[item], 'xAxis'])
-                    tmp_val = np.array([tmp_val]).transpose()  # transpose to convert the variable to a column vector
-                    nodeI = nodeE - tmp_val
-                    nodeJ = nodeE + tmp_val
-                    tmp_I = node.at[int(element.at[storeElementPatch.index[item], 'nodeI']), 'pos']
-                    tmp_J = node.at[int(element.at[storeElementPatch.index[item], 'nodeJ']), 'pos']
-                    tmp_I = np.array([tmp_I]).transpose()
-                    tmp_J = np.array([tmp_J]).transpose()
-
-                    offsetI = nodeI - tmp_I
-                    offsetJ = nodeJ - tmp_J
-
-                    node_disp_item_i = node_disps.at[int(element.at[storeElementPatch.index[item], 'nodeI']), 'Disp']
-                    u_i = node_disp_item_i[0]
-                    v_i = node_disp_item_i[1]
-                    w_i = node_disp_item_i[2]
-                    rotx_i = node_disp_item_i[3]
-                    roty_i = node_disp_item_i[4]
-                    rotz_i = node_disp_item_i[5]
-                    anglesI = np.dot(scale, [rotx_i, roty_i, rotz_i])
-                    anglesI = np.array([anglesI]).transpose()
-                    node_disp_item_j = node_disps.at[int(element.at[storeElementPatch.index[item], 'nodeJ']), 'Disp']
-                    u_j = node_disp_item_j[0]
-                    v_j = node_disp_item_j[1]
-                    w_j = node_disp_item_j[2]
-                    rotx_j = node_disp_item_j[3]
-                    roty_j = node_disp_item_j[4]
-                    rotz_j = node_disp_item_j[5]
-                    anglesJ = np.dot(scale, [rotx_j, roty_j, rotz_j])
-                    anglesJ = np.array([anglesJ]).transpose()
-
-                    offsetRotI = convertTremuriToOpensees_func.rotate3D(offsetI, anglesI)
-                    offsetRotJ = convertTremuriToOpensees_func.rotate3D(offsetJ, anglesJ)
-
-                    xAxisRotI = convertTremuriToOpensees_func.rotate3D(
-                        element.at[storeElementPatch.index[item], 'xAxis'], anglesI)
-                    zAxisRotI = convertTremuriToOpensees_func.rotate3D(
-                        wall.at[int(element.at[storeElementPatch.index[item], 'wall']), 'zAxis'], anglesI)
-                    yAxisRotI = np.cross(zAxisRotI, xAxisRotI)
-                    zAxisRotI = np.reshape(zAxisRotI, (-1, 1))
-                    xAxisRotJ = convertTremuriToOpensees_func.rotate3D(
-                        element.at[storeElementPatch.index[item], 'xAxis'], anglesJ)
-                    zAxisRotJ = convertTremuriToOpensees_func.rotate3D(
-                        wall.at[int(element.at[storeElementPatch.index[item], 'wall']), 'zAxis'], anglesJ)
-                    zAxisRotJ = np.reshape(zAxisRotJ, (-1, 1))
-
-                    node_pos_i = node.at[int(element.at[storeElementPatch.index[item], 'nodeI']), 'pos']
-                    node_pos_i = np.array([node_pos_i]).transpose()  # transpose to convert the variable to a column vector
-                    node_def_i = np.dot(scale, [u_i, v_i, w_i])
-                    node_def_i = np.array([node_def_i]).transpose()  # transpose to convert the variable to a column vector
-                    nodeI = node_pos_i + offsetRotI + node_def_i
-
-                    node_pos_j = node.at[int(element.at[storeElementPatch.index[item], 'nodeJ']), 'pos']
-                    node_pos_j = np.array([node_pos_j]).transpose()  # transpose to convert the variable to a column vector
-                    node_def_j = np.dot(scale, [u_j, v_j, w_j])
-                    node_def_j = np.array([node_def_j]).transpose()  # transpose to convert the variable to a column vector
-                    nodeJ = node_pos_j + offsetRotJ + node_def_j
-
-                    node_disp_item_e = node_disps.at[int(element.at[storeElementPatch.index[item], 'nodeE']), 'Disp']
-                    u_e = node_disp_item_e[0]
-                    v_e = node_disp_item_e[1]
-                    w_e = node_disp_item_e[2]
-                    rotx_e = node_disp_item_e[3]
-                    roty_e = node_disp_item_e[4]
-                    rotz_e = node_disp_item_e[5]
-                    nodeE1 = nodeE + np.array(np.dot(scale, [[u_e], [v_e], [w_e]]))
-                    nodeE2 = nodeE + np.array(np.dot(scale, [[rotx_e], [roty_e], [rotz_e]]))
-
-                    shift = np.dot((nodeE2 - nodeE1).transpose(), yAxisRotI)
-                    shift = shift[0]
-
-                    t = element.at[storeElementPatch.index[item], 't']
-
-                    [xx1, yy1, zz1] = drawModelVTK_func.addWallToPatch(nodeI, nodeE1, zAxisRotI,
-                                                                  element.at[storeElementPatch.index[item], 'b'], t,
-                                                                  [[0], [0], [0]], [[0], [0.5 * shift], [0]], "wireframe")
-                    [xx2, yy2, zz2] = drawModelVTK_func.addWallToPatch(nodeE2, nodeJ, zAxisRotJ,
-                                                                  element.at[storeElementPatch.index[item], 'b'], t,
-                                                                  [[0], [0], [0]], [[0], [-0.5 * shift], [0]], "wireframe")
-                    object_actor = storeElementPatch['Actor1'].iat[item]
-
-                    points = vtk.vtkPoints()
-                    points.InsertNextPoint(xx1[0][0], yy1[0][0], zz1[0][0])
-                    points.InsertNextPoint(xx1[1][0], yy1[1][0], zz1[1][0])
-                    points.InsertNextPoint(xx1[2][0], yy1[2][0], zz1[2][0])
-                    points.InsertNextPoint(xx1[3][0], yy1[3][0], zz1[3][0])
-                    points.InsertNextPoint(xx1[0][1], yy1[0][1], zz1[0][1])
-                    points.InsertNextPoint(xx1[1][1], yy1[1][1], zz1[1][1])
-                    points.InsertNextPoint(xx1[2][1], yy1[2][1], zz1[2][1])
-                    points.InsertNextPoint(xx1[3][1], yy1[3][1], zz1[3][1])
-
-                    ugrid = vtk.vtkUnstructuredGrid()
-                    ugrid.SetPoints(points)
-                    ugrid.InsertNextCell(vtk.VTK_POLYHEDRON, faceId)
-
-                    mapper = vtk.vtkDataSetMapper()
-                    mapper.SetInputData(ugrid)
-                    object_actor.SetMapper(mapper)
-
-                    object_actor = storeElementPatch['Actor2'].iat[item]
-                    if object_actor == object_actor:
-                        points = vtk.vtkPoints()
-                        points.InsertNextPoint(xx2[0][0], yy2[0][0], zz2[0][0])
-                        points.InsertNextPoint(xx2[1][0], yy2[1][0], zz2[1][0])
-                        points.InsertNextPoint(xx2[2][0], yy2[2][0], zz2[2][0])
-                        points.InsertNextPoint(xx2[3][0], yy2[3][0], zz2[3][0])
-                        points.InsertNextPoint(xx2[0][1], yy2[0][1], zz2[0][1])
-                        points.InsertNextPoint(xx2[1][1], yy2[1][1], zz2[1][1])
-                        points.InsertNextPoint(xx2[2][1], yy2[2][1], zz2[2][1])
-                        points.InsertNextPoint(xx2[3][1], yy2[3][1], zz2[3][1])
-                        ugrid = vtk.vtkUnstructuredGrid()
-                        ugrid.SetPoints(points)
-                        ugrid.InsertNextCell(vtk.VTK_POLYHEDRON, faceId)
-
-                        mapper = vtk.vtkDataSetMapper()
-                        mapper.SetInputData(ugrid)
-                        object_actor.SetMapper(mapper)
-
-            self.renderer.GetRenderWindow().Render()
-
-        dialog.close()
 
     def openMenu(self, position):
         indexes = self.mainSidePanel.selectedIndexes()
@@ -4067,6 +3769,7 @@ gridDataEditMenu.triggered.connect(mWindow.close)
 editMenu.addAction(gridDataEditMenu)
 
 windowLayoutEditMenu = QAction(QtGui.QIcon('layoutIcon.png'), 'Window Layout...', mWindow)
+windowLayoutEditMenu = QAction(QtGui.QIcon('layoutIcon.png'), 'Window Layout...', mWindow)
 windowLayoutEditMenu.setStatusTip('Edit layout of the main window')
 windowLayoutEditMenu.triggered.connect(mWindow.close)
 editMenu.addAction(windowLayoutEditMenu)
@@ -4115,12 +3818,12 @@ restraintAssignMenu.triggered.connect(restraintDialog)
 assignMenu.addAction(restraintAssignMenu)
 
 # # Analyze Menu
-analyzeAnalysisMenu = QAction(QtGui.QIcon('analysisOptIcon.png'), 'Analysis Options...', mWindow)
+analyzeAnalysisMenu = QAction('Analyze...', mWindow)
 analyzeAnalysisMenu.setStatusTip('Set analysis pereferences and run analysis')
 analyzeAnalysisMenu.triggered.connect(mWindow.close)
 analysisMenu.addAction(analyzeAnalysisMenu)
 
-runAnalysisMenu = QAction(QtGui.QIcon('runIcon.png'), 'Run Analysis', mWindow)
+runAnalysisMenu = QAction('Run Analysis', mWindow)
 runAnalysisMenu.setShortcut('F5')
 runAnalysisMenu.setStatusTip('Run the preselected analyses')
 runAnalysisMenu.triggered.connect(lambda: runAnalysis())

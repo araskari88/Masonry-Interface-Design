@@ -21,9 +21,11 @@ impF2wConstraint = ''
 impAnalysis = ''
 # project and run-time data
 projectName = ''
-TCLfilePath = os.getcwd() + "\\" + "tcl"
-OUTPUTfilePath = os.getcwd() + "\\" + "output"
-motionFilePath = "C:\Model Processing\tremuri_model_processing\basel_models_Pavia\input"
+tmp_cwd = os.getcwd()
+tmp_cwd = str(tmp_cwd).replace('\\', '/')
+TCLfilePath = tmp_cwd + "/" + "tcl"
+OUTPUTfilePath = tmp_cwd + "/" + "output/"
+motionFilePath = "C:/Model Processing/tremuri_model_processing/basel_models_Pavia/input/"
 # variable definitions
 freeVibrationTime = 0
 
@@ -48,6 +50,8 @@ def wrtOPSfunc():
 
     if not os.path.exists(TCLfilePath):
         os.mkdir(TCLfilePath)
+    if not os.path.exists(OUTPUTfilePath):
+        os.mkdir(OUTPUTfilePath)
     fid = open(join(TCLfilePath, tclFileName), "w+")
 
     wallToWallConnection = '  1 2 3'
@@ -780,7 +784,7 @@ def wrtOPSfunc():
     # close model file
     fid.write('puts "Model defined." \n\n\n')
     fid.close()
-    tmp_filesToRun.at['0', 'fileName'] = join(TCLfilePath, tclFileName)
+    tmp_filesToRun.at['0', 'fileName'] = TCLfilePath + "/" + tclFileName
     tmp_filesToRun.at['0', 'outputFiles'] = np.nan
     tmp_filesToRun_list.append(tmp_filesToRun.values.tolist()[0])
 
@@ -840,7 +844,7 @@ def wrtOPSfunc():
             fout.write("remove recorders; \n\n")
 
             fout.close()
-            tmp_filesToRun.at['0', 'fileName'] = join(TCLfilePath, outFileName)
+            tmp_filesToRun.at['0', 'fileName'] = TCLfilePath + "/" + outFileName
             tmp_filesToRun.at['0', 'outputFiles'] = []
             for kMode in np.arange(impAnalysis['nModes'].iat[item]):
                 tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + projectName + '_mode ' + str(kMode + 1) + '.out')
@@ -905,7 +909,7 @@ def wrtOPSfunc():
             fout.write("remove recorders; \n\n")
 
             fout.close()
-            tmp_filesToRun.at['0', 'fileName'] = join(TCLfilePath, outFileName)
+            tmp_filesToRun.at['0', 'fileName'] = TCLfilePath + "/" + outFileName
             tmp_filesToRun.at['0', 'outputFiles'] = []
             tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + 'analysis' + str(item) + "_" + impAnalysis['type'].iat[item] + "_allDispl.out")
             tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + 'analysis' + str(item) + "_" + impAnalysis['type'].iat[item] + "_allForce.out")
@@ -1010,7 +1014,7 @@ def wrtOPSfunc():
             fout.write("remove recorders; \n\n")
 
             fout.close()
-            tmp_filesToRun.at['0', 'fileName'] = join(TCLfilePath, outFileName)
+            tmp_filesToRun.at['0', 'fileName'] = TCLfilePath + "/" + outFileName
             tmp_filesToRun.at['0', 'outputFiles'] = []
             tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + 'analysis' + str(item) + "_" + impAnalysis['type'].iat[item] + "_allDispl.out")
             tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + 'analysis' + str(item) + "_" + impAnalysis['type'].iat[item] + "_allForce.out")
@@ -1149,7 +1153,7 @@ def wrtOPSfunc():
             fout.write("after 5000\n\n")
 
             fout.close()
-            tmp_filesToRun.at['0', 'fileName'] = join(TCLfilePath, outFileName)
+            tmp_filesToRun.at['0', 'fileName'] = TCLfilePath + "/" + outFileName
             tmp_filesToRun.at['0', 'outputFiles'] = []
             tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + 'analysis' + str(item) + "_" + impAnalysis['type'].iat[item] + "_allDispl.out")
             tmp_filesToRun.at['0', 'outputFiles'].append(OUTPUTfilePath + 'analysis' + str(item) + "_" + impAnalysis['type'].iat[item] + "_allForce.out")
@@ -1189,5 +1193,5 @@ def wrtOPSfunc():
     fopBAT.close()
 
     # run opensees
-    totalPath = cfilePath + "\\" + tclFileName
-    #subprocess.call([batchFileName])
+    totalPath = cfilePath + "/" + tclFileName
+    subprocess.call([batchFileName])
